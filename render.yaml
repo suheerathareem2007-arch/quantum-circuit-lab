@@ -6,8 +6,7 @@ services:
    region: singapore
    rootDir: backend
    buildCommand: "pip install -r requirements.txt"
-   startCommand: uvicorn
-   backend_main:app --host 0.0.0.0 --port $PORT
+   startCommand: "uvicorn backend_main:app --host 0.0.0.0 --port $PORT"
    healthCheckPath: /health
    envVars:
     - key: ANTHROPIC_API_KEY
