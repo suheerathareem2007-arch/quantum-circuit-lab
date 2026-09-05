@@ -42,8 +42,8 @@ claude = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 # Request/response schema — mirrors the gate objects the frontend sends
 # ---------------------------------------------------------------------
 class Gate(BaseModel):
-    type: Literal["H", "X", "Z", "CX"]
-    qubits: List[int]          # [q] for H/X/Z, [control, target] for CX
+    type: Literal["H", "X", "Y", "Z", "S", "T", "CX"]
+    qubits: List[int]          # [q] for single-qubit gates, [control, target] for CX
     col: int
 
 
@@ -69,8 +69,14 @@ def build_circuit(req: CircuitRequest) -> QuantumCircuit:
             qc.h(g.qubits[0])
         elif g.type == "X":
             qc.x(g.qubits[0])
+        elif g.type == "Y":
+            qc.y(g.qubits[0])
         elif g.type == "Z":
             qc.z(g.qubits[0])
+        elif g.type == "S":
+            qc.s(g.qubits[0])
+        elif g.type == "T":
+            qc.t(g.qubits[0])
         elif g.type == "CX":
             qc.cx(g.qubits[0], g.qubits[1])
     return qc
@@ -144,6 +150,86 @@ def explain_circuit(req: ExplainRequest):
         messages=[{"role": "user", "content": prompt}],
     )
     return {"explanation": msg.content[0].text}
+
+
+# ---------------------------------------------------------------------
+# Step 4: active error detection — reviewed live as the student builds,
+# not a static "you forgot a CNOT" rule. Deliberately short + cheap
+# (small max_tokens) since this fires on every circuit edit.
+# ---------------------------------------------------------------------
+class ReviewRequest(BaseModel):
+    gates: List[Gate]
+    num_qubits: int
+
+
+@app.post("/review-circuit")
+def review_circuit(req: ReviewRequest):
+    if not req.gates:
+        return {"note": None}
+
+    gate_desc = ", ".join(
+        f"CNOT(control=q{g.qubits[0]}, target=q{g.qubits[1]})" if g.type == "CX"
+        else f"{g.type}(q{g.qubits[0]})"
+        for g in sorted(req.gates, key=lambda g: g.col)
+    )
+    prompt = (
+        f"A student is building a {req.num_qubits}-qubit quantum circuit, gates so far in order: "
+        f"{gate_desc}. Point out ONE thing worth noticing before they run it — a redundancy "
+        f"(e.g. two gates that cancel out), a likely misunderstanding (e.g. expecting entanglement "
+        f"with no CNOT), or say something genuinely correct they're doing well. "
+        f"One sentence, under 20 words, no preamble. If truly nothing stands out, reply exactly: null"
+    )
+    try:
+        msg = claude.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=80,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = msg.content[0].text.strip()
+        if text.lower().strip(".") == "null":
+            return {"note": None}
+        return {"note": text}
+    except Exception:
+        return {"note": None}
+
+
+# ---------------------------------------------------------------------
+# Step 5: adaptive quiz — questions generated from the circuit the
+# student actually built, not a fixed bank. Forces strict JSON so the
+# frontend can render it like any other quiz.
+# ---------------------------------------------------------------------
+class QuizRequest(BaseModel):
+    gates: List[Gate]
+    num_qubits: int
+
+
+@app.post("/generate-quiz")
+def generate_quiz(req: QuizRequest):
+    gate_desc = ", ".join(
+        f"CNOT(control=q{g.qubits[0]}, target=q{g.qubits[1]})" if g.type == "CX"
+        else f"{g.type}(q{g.qubits[0]})"
+        for g in sorted(req.gates, key=lambda g: g.col)
+    ) or "no gates (identity circuit)"
+
+    prompt = f"""A student built this quantum circuit: {gate_desc}.
+Write exactly 3 multiple-choice questions testing concepts THIS specific circuit demonstrates
+(e.g. if it has H, ask about superposition; if it has CNOT, ask about entanglement; if it has S/T, ask about phase).
+Respond with ONLY raw JSON, no markdown fences, no commentary, in this exact shape:
+[{{"question":"...", "options":["...","...","...","..."], "correct_index":0, "explanation":"..."}}]"""
+
+    try:
+        msg = claude.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=800,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = msg.content[0].text.strip()
+        text = text.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        import json
+        questions = json.loads(text)
+        return {"questions": questions}
+    except Exception as e:
+        raise HTTPException(502, f"Could not generate an adaptive quiz right now: {e}")
 
 
 @app.get("/health")
