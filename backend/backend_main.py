@@ -173,11 +173,15 @@ def review_circuit(req: ReviewRequest):
         for g in sorted(req.gates, key=lambda g: g.col)
     )
     prompt = (
-        f"A student is building a {req.num_qubits}-qubit quantum circuit, gates so far in order: "
-        f"{gate_desc}. Point out ONE thing worth noticing before they run it — a redundancy "
-        f"(e.g. two gates that cancel out), a likely misunderstanding (e.g. expecting entanglement "
-        f"with no CNOT), or say something genuinely correct they're doing well. "
-        f"One sentence, under 20 words, no preamble. If truly nothing stands out, reply exactly: null"
+        f"A student is building a {req.num_qubits}-qubit quantum circuit. "
+        f"The gates currently placed, in execution order, are: {gate_desc}. "
+        "Analyze the actual circuit, not a generic textbook example. "
+        "Identify ONE meaningful issue , misconception, redundancy, or useful observation. "
+        "Only mention entanglement if the circuit's actual gates support or fail to support it. "
+        "If the circuit is correct, praise one specific thing it demonstrates. "
+        "Do not invent an error. "
+        "One sentence, under 25 words, plain English, no preamble. "
+        "If there is genuinely nothing useful to say, reply exactly: null "
     )
     try:
         msg = claude.messages.create(
