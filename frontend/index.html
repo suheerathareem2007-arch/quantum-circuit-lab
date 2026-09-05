@@ -443,11 +443,6 @@ function onWireClick(col,q){
 }
 function renderEntangleTip(){
   const el=document.getElementById('entangleTip'); el.innerHTML='';
-  if(numQubits>1 && !circuit.some(g=>g.type==='CX') && circuit.length>0){
-    const d=document.createElement('div'); d.className='tip';
-    d.textContent='No entangling gate (CNOT) yet — these qubits will stay independent of each other.';
-    el.appendChild(d);
-  }
 }
 
 // ---------------------------------------------------------------
@@ -570,7 +565,8 @@ document.getElementById('explainBtn').onclick = async ()=>{
   btn.disabled = true; const original = btn.textContent;
   out.className = 'readout'; out.textContent = '';
 
-  await ensureBackendAwake(()=>{ out.className='readout empty'; out.textContent='Waking up the quantum backend — first request can take up to a minute…'; });
+  const awake = await ensureBackendAwake(()=>{ out.className='readout empty'; out.textContent='Waking up the AI tutor…'; });
+  if(!awake) { out.className ='readout error'; out.textContent = 'The AI tutor backend is unavailable. Check the Render service and ANTHROPIC_API_KEY.';btn.disabled = false;return; } 
   btn.textContent = 'Thinking…';
 
   try{
