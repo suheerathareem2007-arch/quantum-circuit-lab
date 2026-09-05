@@ -650,10 +650,14 @@ async function generateAdaptiveQuiz(){
   btn.disabled = true; const original = btn.textContent; btn.textContent = 'Generating…';
   statusEl.textContent = 'Asking the tutor to write questions about your circuit…';
   try{
-    const res = await fetch(`${BACKEND_URL}/generate-quiz`, {
+    const awake = await ensureBackedAwake( () => { statusE1.textContent = 'Waking up the AI tutor...';});
+    if(!awake) { throw new Error(AI backend unavailable');}
+    const res = await fetchWithTimeout(`${BACKEND_URL}/generate-quiz`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ gates: lastCircuitSnapshot.map(g=>({type:g.type, qubits:g.qubits, col:g.col})), num_qubits: numQubits })
-    });
+    },
+    45000
+  );
     if(!res.ok) throw new Error();
     const data = await res.json();
     currentQuiz = data.questions;
