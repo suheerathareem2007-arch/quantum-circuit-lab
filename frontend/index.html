@@ -660,9 +660,14 @@ async function generateAdaptiveQuiz(){
     statusEl.textContent = `Adaptive quiz — built from your circuit (${gateDescription(lastCircuitSnapshot)}).`;
     renderQuiz(currentQuiz);
   }catch(e){
-    statusEl.textContent = "Couldn't generate an adaptive quiz right now — showing the starter quiz instead.";
-    currentQuiz = STATIC_QUIZ;
-    renderQuiz(currentQuiz);
+    console.error("Adaptive quiz generation failed:", e);
+    statusEl.textContent = "AI quiz generation failed. Check the AI backend and try again.";
+    document.getElementById('quizBody').innerHTML = `
+    <div class="qcard">
+    <p>Adaptive quiz unavailabel</p>
+    <div style="font-size:13px;color:var(--ink-muted);line-height:1.6;">The circuit was sent to the AI tutor, but the quiz could not be generated.Please check the backend and try again.</div>
+    </div>
+    `;
   }finally{
     btn.disabled = false; btn.textContent = original;
   }
