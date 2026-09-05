@@ -145,13 +145,13 @@ def explain_circuit(req: ExplainRequest):
     )
 
     try:
-    msg = claude.messages.create(
+        msg = claude.messages.create(
         model="claude-sonnet-4-6",
         max_tokens=400,
         messages=[{"role": "user", "content": prompt}],
-     )
-     return {"explanation": msg.content[0].text}
-     except Exception as e:
+        )
+        return {"explanation": msg.content[0].text}
+    except Exception as e:
         raise HTTPException( status_code=502, detail=f"AI tutor error: {str(e)}")
 
 
