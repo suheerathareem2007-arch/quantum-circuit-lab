@@ -35,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-claude = anthropic.Anthropic(api_key=os.environ.get("qcircuitlab"))
+claude = anthropic.Anthropic(api_key=os.environ.get("Qcircuitlab"))
 
 
 # ---------------------------------------------------------------------
