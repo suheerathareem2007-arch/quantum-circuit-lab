@@ -35,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-claude = anthropic.Anthropic(api_key=os.environ.get("Qcircuitlab"))
+claude = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
 
 # ---------------------------------------------------------------------
@@ -152,6 +152,7 @@ def explain_circuit(req: ExplainRequest):
         )
         return {"explanation": msg.content[0].text}
     except Exception as e:
+        print(f"AI tutor error:{e}",flush=True)
         raise HTTPException( status_code=502, detail=f"AI tutor error: {str(e)}")
 
 
